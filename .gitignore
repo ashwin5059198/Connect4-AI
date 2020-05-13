@@ -1,0 +1,9 @@
+# screenshot
+screenshot.png
+
+# cache
+__pycache__/*
+
+# pycharm files
+.idea/*
+
