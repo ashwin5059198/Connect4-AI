@@ -2,9 +2,9 @@ from ppadb.client import Client
 from PIL import Image
 from algo import minimax
 import math
-import os
 import numpy as np
 from time import sleep
+from tabulate import tabulate
 
 
 # red is 1
@@ -15,14 +15,9 @@ X0, Y0 = (84, 633)
 DELTA = 94
 ROWS, COLS = (6, 7)
 
-ROW_COUNT = 6
-COLUMN_COUNT = 7
-
 EMPTY = 0
 PLAYER_PIECE = 1
 AI_PIECE = 2
-
-WINDOW_LENGTH = 4
 
 
 class AI:
@@ -32,9 +27,28 @@ class AI:
         self.image = None
 
     def set_device(self, dev):
+        """ Set android device """
         self.device = dev
 
+    def show_board(self):
+        """ Prints board to stdout, meant for debugging"""
+        sleep(1)
+        self.update_board()
+        board = self.board.copy()
+        board: list = np.flip(board, 0).tolist()
+
+        for r in range(ROWS):
+            for c in range(COLS):
+                if board[r][c] == 1:
+                    board[r][c] = "R"
+                elif board[r][c] == 2:
+                    board[r][c] = "Y"
+                else:
+                    board[r][c] = " "
+        print(tabulate(board, tablefmt="grid"))
+
     def put_piece(self, col_index):
+        """ Tap on a column given index """
         self.device.shell(f"input tap {X0 + col_index * DELTA} {Y0}")
 
     def is_my_turn(self):
@@ -44,6 +58,7 @@ class AI:
         return not all(map(lambda x: x == 255, self.image[216][165][:3]))
 
     def update_image(self):
+        """ Take screenshot and save """
         scn_image = self.device.screencap()
         with open("screenshot.png", "wb") as fp:
             fp.write(scn_image)
@@ -51,10 +66,13 @@ class AI:
         self.image = np.array(img, dtype=np.uint8)
 
     def update_board(self):
+        """ Figure out board configuration from screenshot """
         self.update_image()
+        # Initialise board to 0
         self.board = [[0 for _ in range(COLS)] for __ in range(ROWS)]
         for i in range(ROWS):
             for j in range(COLS):
+                # find pieces from red component of pixel
                 r = self.image[Y0 + i * DELTA][X0 + j * DELTA][0]
                 if r == 255:
                     self.board[i][j] = 2
@@ -63,14 +81,14 @@ class AI:
         self.board = np.flip(self.board, 0)
 
     def play_one_move(self):
+        """ Wait till turn and play best move """
+        print("checking if my turn...", end=" ")
         while True:
             self.update_image()
-            print("checking if my turn...", end=" ")
             if self.is_my_turn():
                 print("yes")
                 break
             else:
-                print("no")
                 sleep(2)
 
         print("thinking...")
@@ -79,6 +97,8 @@ class AI:
         col, minimax_score = minimax(self.board, 6, -math.inf, math.inf, True)
         print("selected column ", col)
         self.put_piece(col_index=col)
+
+        self.show_board()
 
     def start(self):
         while True:
@@ -97,6 +117,7 @@ def main():
     player = AI()
     player.set_device(device)
     player.start()
+
 
 if __name__ == "__main__":
     try:
